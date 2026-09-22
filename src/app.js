@@ -19,12 +19,19 @@ const warnings = document.querySelector("#warnings");
 const exportButton = document.querySelector("#exportButton");
 const demoButton = document.querySelector("#demoButton");
 const diagnostics = document.querySelector("#diagnostics");
+const detectButton = document.querySelector("#detectButton");
+const detectionStatus = document.querySelector("#detectionStatus");
+const detections = document.querySelector("#detections");
 
 let cars = [];
 let filteredCars = [];
 let image = null;
 let points = [];
 let result = null;
+let imageFile = null;
+let vehicleDetections = [];
+let selectedDetection = -1;
+const apiBase = localStorage.getItem("roadWidthApi") || "http://localhost:8000";
 
 async function loadCars() {
   const response = await fetch("data/cars-india-starter.json");
@@ -60,6 +67,11 @@ carSelect.addEventListener("change", syncSelectedCar);
 imageInput.addEventListener("change", event => {
   const file = event.target.files[0];
   if (!file) return;
+  imageFile = file;
+  vehicleDetections = [];
+  selectedDetection = -1;
+  detections.innerHTML = "";
+  detectButton.disabled = false;
   const reader = new FileReader();
   reader.onload = () => {
     const nextImage = new Image();
@@ -77,6 +89,67 @@ imageInput.addEventListener("change", event => {
     nextImage.src = reader.result;
   };
   reader.readAsDataURL(file);
+});
+
+async function checkBackend() {
+  try {
+    const response = await fetch(`${apiBase}/health`);
+    if (!response.ok) throw new Error();
+    const health = await response.json();
+    detectionStatus.textContent = `YOLO backend ready · ${health.model}`;
+  } catch {
+    detectionStatus.textContent = "YOLO backend offline. Start it with the backend command in README.";
+  }
+}
+
+function detectionCrop(box) {
+  const crop = document.createElement("canvas");
+  const width = Math.max(1, box.x2 - box.x1);
+  const height = Math.max(1, box.y2 - box.y1);
+  crop.width = 180;
+  crop.height = Math.max(80, Math.round(180 * height / width));
+  crop.getContext("2d").drawImage(image, box.x1, box.y1, width, height, 0, 0, crop.width, crop.height);
+  return crop.toDataURL("image/jpeg", 0.82);
+}
+
+function renderDetections() {
+  detections.innerHTML = vehicleDetections.map((item, index) => `
+    <button type="button" class="detection ${index === selectedDetection ? "selected" : ""}" data-detection="${index}">
+      <img src="${detectionCrop(item.box)}" alt="Detected ${item.label}">
+      <span><strong>${item.label}</strong><small>${(item.confidence * 100).toFixed(1)}% confidence</small></span>
+    </button>
+  `).join("");
+  detections.querySelectorAll("[data-detection]").forEach(button => {
+    button.addEventListener("click", () => {
+      selectedDetection = Number(button.dataset.detection);
+      renderDetections();
+      draw();
+    });
+  });
+}
+
+detectButton.addEventListener("click", async () => {
+  if (!imageFile) return;
+  detectButton.disabled = true;
+  detectionStatus.textContent = "Running YOLO detection…";
+  const form = new FormData();
+  form.append("image", imageFile);
+  try {
+    const response = await fetch(`${apiBase}/api/detect-vehicles`, { method: "POST", body: form });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Detection failed");
+    vehicleDetections = payload.detections;
+    selectedDetection = vehicleDetections.length ? 0 : -1;
+    detectionStatus.textContent = vehicleDetections.length
+      ? `${vehicleDetections.length} vehicle${vehicleDetections.length === 1 ? "" : "s"} found. Select the reference car.`
+      : "No suitable vehicle found. Continue with manual points.";
+    renderDetections();
+    draw();
+  } catch (error) {
+    detectionStatus.textContent = `${error.message}. Manual measurement is still available.`;
+  } finally {
+    detectButton.disabled = false;
+  }
 });
 
 demoButton.addEventListener("click", async () => {
@@ -162,6 +235,17 @@ function draw() {
   if (!image) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(image, 0, 0);
+  vehicleDetections.forEach((item, index) => {
+    const { x1, y1, x2, y2 } = item.box;
+    ctx.save();
+    ctx.strokeStyle = index === selectedDetection ? "#22c55e" : "rgba(255,255,255,.75)";
+    ctx.lineWidth = Math.max(index === selectedDetection ? 5 : 2, canvas.width / 400);
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.font = `700 ${Math.max(15, canvas.width / 70)}px system-ui`;
+    ctx.fillText(`${item.label} ${(item.confidence * 100).toFixed(0)}%`, x1, Math.max(20, y1 - 8));
+    ctx.restore();
+  });
   if (points.length >= 2) drawLine(points[0], points[1], "#ff7a00", "Car body");
   if (points.length >= 4) drawLine(points[2], points[3], "#38bdf8", "Road");
   if (points.length % 2 === 1) {
@@ -243,3 +327,4 @@ updateSteps();
 loadCars().catch(() => {
   carSelect.innerHTML = '<option value="">Database unavailable — enter width manually</option>';
 });
+checkBackend();
