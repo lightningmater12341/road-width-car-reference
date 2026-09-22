@@ -22,6 +22,10 @@ const diagnostics = document.querySelector("#diagnostics");
 const detectButton = document.querySelector("#detectButton");
 const detectionStatus = document.querySelector("#detectionStatus");
 const detections = document.querySelector("#detections");
+const saveTrainingButton = document.querySelector("#saveTrainingButton");
+const loadCandidateButton = document.querySelector("#loadCandidateButton");
+const skipCandidateButton = document.querySelector("#skipCandidateButton");
+const datasetStatus = document.querySelector("#datasetStatus");
 
 let cars = [];
 let filteredCars = [];
@@ -32,6 +36,9 @@ let imageFile = null;
 let vehicleDetections = [];
 let selectedDetection = -1;
 const apiBase = localStorage.getItem("roadWidthApi") || "http://localhost:8000";
+let candidates = [];
+let candidateIndex = -1;
+let currentCandidate = null;
 
 async function loadCars() {
   const response = await fetch("data/cars-india-starter.json");
@@ -64,10 +71,9 @@ carSearch.addEventListener("input", () => {
 carSelect.addEventListener("change", syncSelectedCar);
 [customWidth, yawAngle, pointSigma, yawSigma].forEach(element => element.addEventListener("input", calculate));
 
-imageInput.addEventListener("change", event => {
-  const file = event.target.files[0];
-  if (!file) return;
+function loadImageFile(file, candidate = null) {
   imageFile = file;
+  currentCandidate = candidate;
   vehicleDetections = [];
   selectedDetection = -1;
   detections.innerHTML = "";
@@ -89,6 +95,11 @@ imageInput.addEventListener("change", event => {
     nextImage.src = reader.result;
   };
   reader.readAsDataURL(file);
+}
+
+imageInput.addEventListener("change", event => {
+  const file = event.target.files[0];
+  if (file) loadImageFile(file);
 });
 
 async function checkBackend() {
@@ -97,10 +108,38 @@ async function checkBackend() {
     if (!response.ok) throw new Error();
     const health = await response.json();
     detectionStatus.textContent = `YOLO backend ready · ${health.model}`;
+    await refreshDataset();
   } catch {
     detectionStatus.textContent = "YOLO backend offline. Start it with the backend command in README.";
   }
 }
+
+async function refreshDataset() {
+  const [candidateResponse, statsResponse] = await Promise.all([
+    fetch(`${apiBase}/api/candidates`),
+    fetch(`${apiBase}/api/dataset/stats`)
+  ]);
+  if (!candidateResponse.ok || !statsResponse.ok) return;
+  candidates = await candidateResponse.json();
+  const stats = await statsResponse.json();
+  datasetStatus.textContent = `${stats.annotations} labelled · ${candidates.length} sourced candidates available`;
+}
+
+async function loadCandidate(offset = 1) {
+  if (!candidates.length) {
+    datasetStatus.textContent = "No sourced photos yet. Run source_commons.py in the backend.";
+    return;
+  }
+  candidateIndex = (candidateIndex + offset + candidates.length) % candidates.length;
+  const candidate = candidates[candidateIndex];
+  const response = await fetch(`${apiBase}/api/candidates/${encodeURIComponent(candidate.filename)}`);
+  const blob = await response.blob();
+  loadImageFile(new File([blob], candidate.filename, { type: blob.type }), candidate);
+  datasetStatus.textContent = `Candidate ${candidateIndex + 1}/${candidates.length} · ${candidate.license}`;
+}
+
+loadCandidateButton.addEventListener("click", () => loadCandidate(1));
+skipCandidateButton.addEventListener("click", () => loadCandidate(1));
 
 function detectionCrop(box) {
   const crop = document.createElement("canvas");
@@ -266,6 +305,7 @@ function clearResult(message = "Complete all four points to calculate.") {
   warnings.innerHTML = "";
   diagnostics.innerHTML = "";
   exportButton.disabled = true;
+  saveTrainingButton.disabled = true;
 }
 
 function calculate() {
@@ -298,6 +338,7 @@ function calculate() {
       ["Yaw factor", result.yawFactor.toFixed(3)]
     ].map(([label, value]) => `<div class="diagnostic"><span>${label}</span><strong>${value}</strong></div>`).join("");
     exportButton.disabled = false;
+    saveTrainingButton.disabled = false;
   } catch (error) {
     clearResult(error.message);
   }
@@ -321,6 +362,41 @@ exportButton.addEventListener("click", () => {
   link.download = "road-width-measurement.json";
   link.click();
   URL.revokeObjectURL(link.href);
+});
+
+saveTrainingButton.addEventListener("click", async () => {
+  if (!result || !imageFile || points.length !== 4) return;
+  const car = cars.find(item => item.id === carSelect.value) || null;
+  const selectedVehicle = selectedDetection >= 0 ? vehicleDetections[selectedDetection] : null;
+  const annotation = {
+    vehicle_id: car?.id || null,
+    vehicle_label: car ? `${car.make} ${car.model}` : "custom",
+    body_width_mm: Number(customWidth.value),
+    yaw_deg: Number(yawAngle.value),
+    image_size_px: { width: canvas.width, height: canvas.height },
+    chassis_points: points.slice(0, 2),
+    road_points: points.slice(2, 4),
+    vehicle_detection: selectedVehicle,
+    source: currentCandidate
+  };
+  const form = new FormData();
+  form.append("image", imageFile);
+  form.append("annotation", JSON.stringify(annotation));
+  saveTrainingButton.disabled = true;
+  saveTrainingButton.textContent = "Saving…";
+  try {
+    const response = await fetch(`${apiBase}/api/annotations`, { method: "POST", body: form });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "Could not save annotation");
+    saveTrainingButton.textContent = payload.duplicate ? "Already saved" : "Saved ✓";
+    await refreshDataset();
+  } catch (error) {
+    saveTrainingButton.textContent = error.message;
+  }
+  setTimeout(() => {
+    saveTrainingButton.textContent = "Save training example";
+    saveTrainingButton.disabled = false;
+  }, 1800);
 });
 
 updateSteps();
