@@ -17,6 +17,8 @@ It now includes an optional YOLO-assisted workflow. A local FastAPI backend dete
 - Export the measurement and clicked points as JSON.
 - Detect cars automatically with a pretrained YOLO model.
 - Preview detected car crops and select the best reference vehicle.
+- Save completed measurements as image/annotation training pairs.
+- Review a locally sourced queue of openly licensed candidate photographs.
 
 When YOLO detection is enabled, the photograph is sent only to the locally running backend.
 
@@ -49,6 +51,18 @@ python3 -m http.server 8080
 ```
 
 Open `http://localhost:8080`. The YOLO weights download automatically on the first detection. The current pretrained model detects vehicle categories such as car and truck; it does not identify the exact make, model, generation, or mirror-excluded chassis edges.
+
+## Source the first 100 candidate photographs
+
+With the backend environment active:
+
+```bash
+python source_commons.py --count 100
+```
+
+The script searches Wikimedia Commons for Indian roads and common Indian vehicles, keeps landscape images with reusable licences, downloads display-sized copies, and stores the source URL, creator, licence and credit beside each image. Review is still mandatory: skip irrelevant images, confirm the exact vehicle, mark the four points, and press **Save training example**.
+
+Downloaded candidates and annotations stay in `backend/dataset/` and are excluded from Git because photographs and local training data should not be committed blindly.
 
 For a quick check, load `sample/synthetic-road.svg`, choose a custom car width of
 1800 mm, and click the labelled orange and blue endpoints. The expected result
@@ -95,6 +109,7 @@ src/geometry.mjs            Measurement and uncertainty engine
 backend/main.py             FastAPI upload and detection endpoint
 backend/detector.py         Lazy-loaded YOLO vehicle detector
 backend/tests/              Detector unit tests
+backend/source_commons.py   Open-licence candidate image sourcer
 data/cars-india-starter.json Starter vehicle database
 data/schema.sql             Production database schema
 docs/ARCHITECTURE.md        Full system architecture
