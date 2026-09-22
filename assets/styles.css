@@ -175,6 +175,8 @@ canvas { display: none; width: 100%; height: auto; cursor: crosshair; }
 .diagnostic span { display: block; color: var(--muted); font-size: .7rem; }
 .diagnostic strong { display: block; margin-top: 4px; font-size: .93rem; }
 #exportButton { grid-column: 1 / -1; justify-self: start; background: var(--blue); }
+#saveTrainingButton { grid-column: 1 / -1; justify-self: start; background: #067647; }
+.candidate-row { margin-top: 9px; }
 
 footer { padding: 24px 0 34px; color: var(--muted); font-size: .8rem; text-align: center; }
 
