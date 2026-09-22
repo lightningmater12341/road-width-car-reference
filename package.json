@@ -1,0 +1,14 @@
+{
+  "name": "road-width-car-reference",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Estimate road width from a photograph using a known car body width.",
+  "scripts": {
+    "test": "node --test tests/geometry.test.mjs",
+    "serve": "python3 -m http.server 8000"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
