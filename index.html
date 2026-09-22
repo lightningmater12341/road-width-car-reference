@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Road Width Estimator</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">Computer Vision Geometry Prototype</p>
+      <h1>Road Width Estimator</h1>
+      <p class="subtitle">Measure a road from one photo using a known car body width.</p>
+    </div>
+    <span class="badge">Manual-first MVP</span>
+  </header>
+
+  <main>
+    <section class="panel controls">
+      <h2>1. Reference vehicle</h2>
+      <label for="carSearch">Search current Indian-market cars</label>
+      <input id="carSearch" type="search" placeholder="Try Nexon, Creta, Swift…">
+      <label for="carSelect">Vehicle model</label>
+      <select id="carSelect"></select>
+
+      <div class="two-col">
+        <div>
+          <label for="customWidth">Body width (mm)</label>
+          <input id="customWidth" type="number" min="1000" max="2600" step="1">
+        </div>
+        <div>
+          <label for="yawAngle">Estimated yaw (°)</label>
+          <input id="yawAngle" type="number" min="-45" max="45" step="0.5" value="0">
+        </div>
+      </div>
+
+      <label for="imageInput">Road photograph</label>
+      <input id="imageInput" type="file" accept="image/*">
+      <button id="demoButton" type="button" class="demo-button">Load 5.40 m demo</button>
+
+      <h2>2. Mark four points</h2>
+      <ol id="steps">
+        <li data-step="0">Car body left edge</li>
+        <li data-step="1">Car body right edge</li>
+        <li data-step="2">Road left edge at car depth</li>
+        <li data-step="3">Road right edge at car depth</li>
+      </ol>
+      <div class="button-row">
+        <button id="undoButton" type="button">Undo point</button>
+        <button id="resetButton" type="button" class="secondary">Reset</button>
+      </div>
+
+      <details>
+        <summary>Uncertainty settings</summary>
+        <label for="pointSigma">Point-selection error (px, 1σ)</label>
+        <input id="pointSigma" type="number" min="0.5" max="30" step="0.5" value="3">
+        <label for="yawSigma">Yaw error (°, 1σ)</label>
+        <input id="yawSigma" type="number" min="0" max="20" step="0.5" value="3">
+      </details>
+    </section>
+
+    <section class="workspace">
+      <div class="canvas-shell">
+        <canvas id="photoCanvas" aria-label="Road photograph measurement canvas"></canvas>
+        <div id="emptyState">
+          <strong>Load a road photograph</strong>
+          <span>Then click the four requested points in order.</span>
+        </div>
+      </div>
+
+      <section id="resultPanel" class="panel result" aria-live="polite">
+        <div>
+          <p class="eyebrow">Estimated road width</p>
+          <div class="measurement"><span id="roadWidth">—</span> <small>m</small></div>
+          <p id="interval">Complete all four points to calculate.</p>
+        </div>
+        <div class="confidence-block">
+          <span>Confidence</span>
+          <strong id="confidence">—</strong>
+          <div class="meter"><span id="confidenceBar"></span></div>
+        </div>
+        <ul id="warnings"></ul>
+        <div id="diagnostics" class="diagnostics"></div>
+        <button id="exportButton" type="button" disabled>Export result JSON</button>
+      </section>
+    </section>
+  </main>
+
+  <footer>
+    Research prototype only — not a replacement for calibrated land surveying.
+  </footer>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
