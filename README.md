@@ -2,7 +2,7 @@
 
 This browser-based prototype estimates road width from one photograph by using a known, mirror-excluded vehicle body width as the scale reference.
 
-It is intentionally manual-first: the user selects four points on the image so the geometry remains visible and testable before automatic car recognition and road segmentation are added.
+It now includes an optional YOLO-assisted workflow. A local FastAPI backend detects vehicles and ranks possible reference cars, while exact model confirmation and chassis endpoints remain manual for reliability.
 
 ## What works
 
@@ -15,8 +15,10 @@ It is intentionally manual-first: the user selects four points on the image so t
 - Inspect pixel scale, depth mismatch, line alignment, and yaw diagnostics.
 - Load a one-click 5.40 m synthetic demonstration.
 - Export the measurement and clicked points as JSON.
+- Detect cars automatically with a pretrained YOLO model.
+- Preview detected car crops and select the best reference vehicle.
 
-No image is uploaded anywhere. The application runs entirely in the browser.
+When YOLO detection is enabled, the photograph is sent only to the locally running backend.
 
 ## Run
 
@@ -27,6 +29,26 @@ python3 -m http.server 8000
 ```
 
 Then open `http://localhost:8000`.
+
+## Run with YOLO detection
+
+Start the API in one terminal:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+Serve the frontend on a different port in another terminal:
+
+```bash
+python3 -m http.server 8080
+```
+
+Open `http://localhost:8080`. The YOLO weights download automatically on the first detection. The current pretrained model detects vehicle categories such as car and truck; it does not identify the exact make, model, generation, or mirror-excluded chassis edges.
 
 For a quick check, load `sample/synthetic-road.svg`, choose a custom car width of
 1800 mm, and click the labelled orange and blue endpoints. The expected result
@@ -70,6 +92,9 @@ index.html                  Browser application
 assets/styles.css           Interface styling
 src/app.js                  Canvas interaction and UI
 src/geometry.mjs            Measurement and uncertainty engine
+backend/main.py             FastAPI upload and detection endpoint
+backend/detector.py         Lazy-loaded YOLO vehicle detector
+backend/tests/              Detector unit tests
 data/cars-india-starter.json Starter vehicle database
 data/schema.sql             Production database schema
 docs/ARCHITECTURE.md        Full system architecture
@@ -85,8 +110,8 @@ ROADMAP.md                  Planned automation and validation work
 
 Replace manual selection with automatic modules while preserving the manual fallback:
 
-1. Vehicle detection and instance segmentation.
-2. Make/model classification with top-k user confirmation.
+1. Make/model classification with top-k user confirmation.
+2. Chassis segmentation and vehicle keypoints.
 3. Vehicle keypoints and 3D pose estimation.
 4. Road-edge or drivable-area segmentation.
 5. Camera calibration or EXIF-based intrinsics.
