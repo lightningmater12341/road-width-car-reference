@@ -37,6 +37,11 @@
 
       <label for="imageInput">Road photograph</label>
       <input id="imageInput" type="file" accept="image/*">
+      <div class="button-row candidate-row">
+        <button id="loadCandidateButton" type="button" class="secondary">Load sourced photo</button>
+        <button id="skipCandidateButton" type="button" class="secondary">Skip photo</button>
+      </div>
+      <div id="datasetStatus" class="detection-status">Checking local dataset…</div>
       <button id="detectButton" type="button" disabled>Detect cars with YOLO</button>
       <div id="detectionStatus" class="detection-status">Backend not checked yet.</div>
       <div id="detections" class="detections"></div>
@@ -86,6 +91,7 @@
         <ul id="warnings"></ul>
         <div id="diagnostics" class="diagnostics"></div>
         <button id="exportButton" type="button" disabled>Export result JSON</button>
+        <button id="saveTrainingButton" type="button" disabled>Save training example</button>
       </section>
     </section>
   </main>
