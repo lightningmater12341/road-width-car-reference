@@ -13,7 +13,7 @@
       <h1>Road Width Estimator</h1>
       <p class="subtitle">Measure a road from one photo using a known car body width.</p>
     </div>
-    <span class="badge">Manual-first MVP</span>
+    <span class="badge">YOLO-assisted MVP</span>
   </header>
 
   <main>
@@ -37,6 +37,9 @@
 
       <label for="imageInput">Road photograph</label>
       <input id="imageInput" type="file" accept="image/*">
+      <button id="detectButton" type="button" disabled>Detect cars with YOLO</button>
+      <div id="detectionStatus" class="detection-status">Backend not checked yet.</div>
+      <div id="detections" class="detections"></div>
       <button id="demoButton" type="button" class="demo-button">Load 5.40 m demo</button>
 
       <h2>2. Mark four points</h2>
