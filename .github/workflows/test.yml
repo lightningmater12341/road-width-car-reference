@@ -1,4 +1,4 @@
-name: Geometry Tests
+name: Project Tests
 
 on:
   push:
@@ -13,3 +13,9 @@ jobs:
         with:
           node-version: 22
       - run: npm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pillow==11.3.0 pytest==8.4.2
+      - run: pytest -q
+        working-directory: backend
